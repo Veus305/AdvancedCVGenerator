@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CVFORM // CV SYNTHESIS UNIT</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --void: #00000a;
+            --deep: #020214;
+            --plasma: #00ffe7;
+            --plasma2: #00b8ff;
+            --plasma3: #7b2fff;
+            --bio: #39ff14;
+            --warning: #ff3a6e;
+            --dim: rgba(0,255,231,0.08);
+            --dim2: rgba(0,255,231,0.04);
+            --glass: rgba(0,255,231,0.06);
+            --text: #a8d8e8;
+            --text-dim: rgba(168,216,232,0.5);
+            --glow: 0 0 20px rgba(0,255,231,0.4), 0 0 40px rgba(0,255,231,0.15);
+            --glow-strong: 0 0 30px rgba(0,255,231,0.7), 0 0 60px rgba(0,255,231,0.3), 0 0 100px rgba(0,255,231,0.1);
+            --glow-purple: 0 0 20px rgba(123,47,255,0.5), 0 0 40px rgba(123,47,255,0.2);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background: var(--void);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+            cursor: none;
+        }
+
+        /* Custom cursor */
+        #cursor {
+            position: fixed;
+            width: 16px;
+            height: 16px;
+            border: 1px solid var(--plasma);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s, width 0.2s, height 0.2s, border-color 0.2s;
+            mix-blend-mode: screen;
+        }
+        #cursor::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 50%;
+            width: 4px; height: 4px;
+            background: var(--plasma);
+            border-radius: 50%;
+            transform: translate(-50%,-50%);
+            box-shadow: var(--glow);
+        }
+        #cursor-trail {
+            position: fixed;
+            width: 32px; height: 32px;
+            border: 1px solid rgba(0,255,231,0.2);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+            transition: transform 0.15s ease, left 0.15s ease, top 0.15s ease;
+        }
+
+        /* Animated starfield */
+        #starfield {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Hexagonal grid bg */
+        .hex-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image: 
+                radial-gradient(ellipse 80% 60% at 20% 10%, rgba(123,47,255,0.08) 0%, transparent 60%),
+                radial-gradient(ellipse 60% 80% at 80% 90%, rgba(0,255,231,0.06) 0%, transparent 60%),
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='100' viewBox='0 0 56 100'%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34L28 66zM28 100L0 84V50l28-16 28 16v34L28 100z' fill='none' stroke='rgba(0,255,231,0.04)' stroke-width='1'/%3E%3C/svg%3E");
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Scanlines */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0,255,231,0.015) 2px,
+                rgba(0,255,231,0.015) 4px
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Main wrapper */
+        .shell {
+            position: relative;
+            z-index: 2;
+            max-width: 920px;
+            margin: 0 auto;
+            padding: 40px 20px 80px;
+        }
+
+        /* Header / masthead */
+        .masthead {
+            text-align: center;
+            padding: 50px 0 40px;
+            position: relative;
+        }
+
+        .masthead-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            color: var(--plasma);
+            letter-spacing: 6px;
+            opacity: 0.7;
+            margin-bottom: 12px;
+            animation: flicker 4s infinite;
+        }
+
+        .masthead h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(28px, 5vw, 56px);
+            font-weight: 900;
+            letter-spacing: 4px;
+            color: #fff;
+            text-shadow: var(--glow-strong);
+            line-height: 1;
+        }
+
+        .masthead h1 span {
+            color: var(--plasma);
+        }
+
+        .masthead-sub {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 12px;
+            color: var(--text-dim);
+            letter-spacing: 3px;
+            margin-top: 14px;
+        }
+
+        /* Animated top bar */
+        .energy-bar {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--plasma), var(--plasma2), var(--plasma3), transparent);
+            margin: 20px 0;
+            position: relative;
+            box-shadow: var(--glow);
+            animation: energyPulse 3s ease-in-out infinite;
+        }
+        .energy-bar::before {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: inherit;
+            filter: blur(4px);
+            opacity: 0.6;
+        }
+
+        /* Corner decorations */
+        .masthead::before, .masthead::after {
+            content: '';
+            position: absolute;
+            width: 60px; height: 60px;
+            border-color: var(--plasma);
+            border-style: solid;
+            opacity: 0.4;
+        }
+        .masthead::before { top: 0; left: 0; border-width: 2px 0 0 2px; }
+        .masthead::after  { top: 0; right: 0; border-width: 2px 2px 0 0; }
+
+        /* Status row */
+        .status-row {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 50px;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: var(--bio);
+            box-shadow: 0 0 8px var(--bio);
+            animation: blink 1.5s infinite;
+        }
+        .status-dot.red { background: var(--warning); box-shadow: 0 0 8px var(--warning); animation-delay: 0.5s; }
+        .status-dot.blue { background: var(--plasma2); box-shadow: 0 0 8px var(--plasma2); animation-delay: 1s; }
+
+        /* Section panels */
+        .panel {
+            background: var(--glass);
+            border: 1px solid rgba(0,255,231,0.12);
+            border-radius: 2px;
+            margin-bottom: 24px;
+            position: relative;
+            clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 20px 100%, 0 calc(100% - 20px));
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .panel:hover {
+            border-color: rgba(0,255,231,0.3);
+            box-shadow: inset 0 0 40px rgba(0,255,231,0.03), 0 0 30px rgba(0,255,231,0.08);
+        }
+        .panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--plasma), transparent);
+            opacity: 0.4;
+        }
+
+        .panel-inner {
+            padding: 28px 32px 32px;
+        }
+
+        /* Panel headers */
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 28px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(0,255,231,0.1);
+        }
+
+        .panel-icon {
+            width: 36px; height: 36px;
+            border: 1px solid rgba(0,255,231,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            background: rgba(0,255,231,0.08);
+            flex-shrink: 0;
+        }
+
+        .panel-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: var(--plasma);
+            text-shadow: 0 0 10px rgba(0,255,231,0.4);
+        }
+
+        .panel-id {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            color: var(--text-dim);
+            margin-left: auto;
+            letter-spacing: 1px;
+        }
+
+        /* Form field groups */
+        .field-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .field-group.full { grid-template-columns: 1fr; }
+        .field-group.trio { grid-template-columns: 1fr 1fr 1fr; }
+
+        /* Form fields */
+        .field {
+            position: relative;
+        }
+
+        .field label {
+            display: block;
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            color: var(--plasma);
+            margin-bottom: 8px;
+            opacity: 0.8;
+        }
+
+        .field input,
+        .field textarea {
+            width: 100%;
+            background: rgba(0,255,231,0.03);
+            border: 1px solid rgba(0,255,231,0.15);
+            border-radius: 1px;
+            padding: 12px 14px;
+            font-family: 'Rajdhani', sans-serif;
+            font-size: 15px;
+            font-weight: 500;
+            color: #e0f4ff;
+            transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+            outline: none;
+            resize: vertical;
+        }
+
+        .field input::placeholder,
+        .field textarea::placeholder {
+            color: rgba(168,216,232,0.2);
+            font-size: 13px;
+        }
+
+        .field input:focus,
+        .field textarea:focus {
+            border-color: var(--plasma);
+            background: rgba(0,255,231,0.06);
+            box-shadow: 0 0 0 1px rgba(0,255,231,0.1), inset 0 0 20px rgba(0,255,231,0.03);
+        }
+
+        /* Animated focus line */
+        .field::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0;
+            width: 0; height: 2px;
+            background: var(--plasma);
+            box-shadow: var(--glow);
+            transition: width 0.3s;
+        }
+        .field:focus-within::after { width: 100%; }
+
+        /* Sub-section divider */
+        .sub-section {
+            border-top: 1px solid rgba(0,255,231,0.06);
+            padding-top: 24px;
+            margin-top: 24px;
+        }
+        .sub-section-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 10px;
+            color: var(--plasma3);
+            letter-spacing: 3px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .sub-section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, rgba(123,47,255,0.4), transparent);
+        }
+
+        /* Generate button */
+        .btn-synthesize {
+            display: block;
+            width: 100%;
+            padding: 20px;
+            background: transparent;
+            border: 1px solid var(--plasma);
+            color: var(--plasma);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 5px;
+            cursor: none;
+            position: relative;
+            overflow: hidden;
+            clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 24px 100%, 0 calc(100% - 24px));
+            text-shadow: var(--glow);
+            transition: color 0.3s, box-shadow 0.3s;
+            margin-top: 8px;
+        }
+
+        .btn-synthesize::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0,255,231,0.15), transparent);
+            transition: left 0.6s;
+        }
+        .btn-synthesize:hover::before { left: 100%; }
+        .btn-synthesize:hover {
+            box-shadow: var(--glow), inset 0 0 40px rgba(0,255,231,0.1);
+        }
+        .btn-synthesize:active {
+            transform: scale(0.99);
+        }
+
+        /* Loading state */
+        .synthesizing .btn-synthesize {
+            color: var(--bio);
+            border-color: var(--bio);
+            box-shadow: 0 0 20px rgba(57,255,20,0.3);
+            animation: synthPulse 0.5s infinite;
+        }
+
+        /* PDF Viewer */
+        #viewerWrap {
+            display: none;
+            margin-top: 40px;
+            position: relative;
+        }
+
+        #viewerWrap .panel-title {
+            margin-bottom: 16px;
+        }
+
+        #pdfViewer {
+            width: 100%;
+            height: 720px;
+            border: 1px solid rgba(0,255,231,0.15);
+            border-radius: 2px;
+            display: block;
+            background: #fff;
+        }
+
+        /* Download button */
+        .btn-download {
+            margin-top: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 24px;
+            background: transparent;
+            border: 1px solid rgba(0,255,231,0.3);
+            color: var(--text);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 2px;
+            cursor: none;
+            transition: border-color 0.3s, color 0.3s;
+        }
+        .btn-download:hover {
+            border-color: var(--plasma);
+            color: var(--plasma);
+        }
+
+        /* Data nodes (decorative readouts) */
+        .data-nodes {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 36px;
+        }
+        .data-node {
+            background: var(--dim2);
+            border: 1px solid rgba(0,255,231,0.08);
+            padding: 14px;
+            text-align: center;
+            clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+        }
+        .data-node-val {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--plasma);
+            display: block;
+        }
+        .data-node-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9px;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+            margin-top: 4px;
+            display: block;
+        }
+
+        /* Progress bar for fields */
+        .fill-meter {
+            height: 2px;
+            background: rgba(0,255,231,0.1);
+            margin-top: 24px;
+            border-radius: 1px;
+            overflow: hidden;
+        }
+        .fill-meter-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--plasma3), var(--plasma));
+            width: 0%;
+            transition: width 0.5s ease;
+            box-shadow: var(--glow);
+        }
+        .fill-label {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 9px;
+            color: var(--text-dim);
+            letter-spacing: 2px;
+            margin-top: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Animations */
+        @keyframes flicker {
+            0%, 95%, 100% { opacity: 0.7; }
+            96% { opacity: 0.3; }
+            97% { opacity: 0.7; }
+            98% { opacity: 0.4; }
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.2; }
+        }
+        @keyframes energyPulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; box-shadow: var(--glow-strong); }
+        }
+        @keyframes synthPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        @keyframes panelIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .panel { animation: panelIn 0.5s ease forwards; }
+        .panel:nth-child(2) { animation-delay: 0.05s; }
+        .panel:nth-child(3) { animation-delay: 0.1s; }
+        .panel:nth-child(4) { animation-delay: 0.15s; }
+        .panel:nth-child(5) { animation-delay: 0.2s; }
+        .panel:nth-child(6) { animation-delay: 0.25s; }
+        .panel:nth-child(7) { animation-delay: 0.3s; }
+
+        /* Hex decorators */
+        .hex-deco {
+            position: absolute;
+            opacity: 0.05;
+            font-size: 120px;
+            color: var(--plasma);
+            right: -20px;
+            top: -20px;
+            pointer-events: none;
+            line-height: 1;
+        }
+
+        /* Tooltip */
+        .required-mark {
+            color: var(--warning);
+            font-size: 10px;
+            margin-left: 4px;
+        }
+
+        /* Corner tag on panels */
+        .corner-tag {
+            position: absolute;
+            top: 0; right: 0;
+            width: 20px; height: 20px;
+            background: linear-gradient(135deg, transparent 50%, rgba(0,255,231,0.15) 50%);
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .field-group, .field-group.trio { grid-template-columns: 1fr; }
+            .data-nodes { grid-template-columns: repeat(2, 1fr); }
+            .status-row { flex-wrap: wrap; gap: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="hex-bg"></div>
+<canvas id="starfield"></canvas>
+<div id="cursor"></div>
+<div id="cursor-trail"></div>
+
+<div class="shell">
+    <!-- Masthead -->
+    <div class="masthead">
+        <div class="masthead-label">// XENOFORM SYSTEMS — IDENTITY SYNTHESIS MODULE //</div>
+        <h1>CV<span>FORM</span></h1>
+        <div class="masthead-sub">CV SYNTHESIS UNIT v9.4.1 — BIODATA ENCODER</div>
+        <div class="energy-bar"></div>
+    </div>
+
+    <!-- Status row -->
+    <div class="status-row">
+        <div class="status-item"><div class="status-dot"></div> NEURAL UPLINK STABLE</div>
+        <div class="status-item"><div class="status-dot blue"></div> JSPDF ENGINE LOADED</div>
+        <div class="status-item"><div class="status-dot red"></div> AWAITING INPUT STREAM</div>
+    </div>
+
+    <!-- Progress meter -->
+    <div style="margin-bottom:36px; padding: 0 4px;">
+        <div class="fill-meter">
+            <div class="fill-meter-bar" id="fillBar"></div>
+        </div>
+        <div class="fill-label">
+            <span>BIODATA COMPLETION</span>
+            <span id="fillPct">0%</span>
+        </div>
+    </div>
+
+    <!-- Data nodes -->
+    <div class="data-nodes">
+        <div class="data-node">
+            <span class="data-node-val" id="dn-fields">0</span>
+            <span class="data-node-label">FIELDS ACTIVE</span>
+        </div>
+        <div class="data-node">
+            <span class="data-node-val" id="dn-words">0</span>
+            <span class="data-node-label">WORD COUNT</span>
+        </div>
+        <div class="data-node">
+            <span class="data-node-val" id="dn-sections">0</span>
+            <span class="data-node-label">SECTIONS LOADED</span>
+        </div>
+        <div class="data-node">
+            <span class="data-node-val" id="dn-pages">—</span>
+            <span class="data-node-label">EST. PAGES</span>
+        </div>
+    </div>
+
+    <form id="cvForm">
+
+        <!-- PERSONAL INFO -->
+        <div class="panel">
+            <div class="corner-tag"></div>
+            <div class="panel-inner">
+                <div class="panel-header">
+                    <div class="panel-icon">◈</div>
+                    <div class="panel-title">PERSONAL BIODATA</div>
+                    <div class="panel-id">SEC-01 / ID MATRIX</div>
+                </div>
+
+                <div class="field-group">
+                    <div class="field">
+                        <label>FULL DESIGNATION <span class="required-mark">✱</span></label>
+                        <input type="text" id="fullName" placeholder="Your full name" required>
+                    </div>
+                    <div class="field">
+                        <label>GEO-COORDINATES</label>
+                        <input type="text" id="address" placeholder="City, Country" required>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <div class="field">
+                        <label>COMM SIGNAL — VOICE <span class="required-mark">✱</span></label>
+                        <input type="tel" id="phone" placeholder="+254 700 000 000" required>
+                    </div>
+                    <div class="field">
+                        <label>COMM SIGNAL — DIGITAL <span class="required-mark">✱</span></label>
+                        <input type="email" id="email" placeholder="you@domain.com" required>
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <div class="field">
+                        <label>LINKEDIN NODE</label>
+                        <input type="url" id="linkedin" placeholder="https://linkedin.com/in/you">
+                    </div>
+                    <div class="field">
+                        <label>PORTFOLIO / GITHUB RELAY</label>
+                        <input type="url" id="github" placeholder="https://github.com/you">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SUMMARY -->
+        <div class="panel">
+            <div class="corner-tag"></div>
+            <div class="panel-inner">
+                <div class="panel-header">
+                    <div class="panel-icon">⬡</div>
+                    <div class="panel-title">NEURAL PROFILE</div>
+                    <div class="panel-id">SEC-02 / SUMMARY CORE</div>
+                </div>
+                <div class="field">
+                    <label>PROFESSIONAL SUMMARY <span class="required-mark">✱</span> — 2–6 SENTENCES OPTIMAL</label>
+                    <textarea id="summary" rows="5" placeholder="Describe your professional identity, key strengths, and core mission statement..." required></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- EDUCATION -->
+        <div class="panel">
+            <div class="corner-tag"></div>
+            <div class="panel-inner">
+                <div class="panel-header">
+                    <div class="panel-icon">⬢</div>
+                    <div class="panel-title">KNOWLEDGE ARCHIVE</div>
+                    <div class="panel-id">SEC-03 / EDUCATION LOG</div>
+                </div>
+
+                <div class="sub-section-label">PRIMARY LEARNING NODE</div>
+                <div class="field-group">
+                    <div class="field">
+                        <label>INSTITUTION NAME <span class="required-mark">✱</span></label>
+                        <input type="text" id="primarySchool" placeholder="Primary school name" required>
+                    </div>
+                    <div class="field">
+                        <label>CHRONOLOGICAL PERIOD <span class="required-mark">✱</span></label>
+                        <input type="text" id="primaryYears" placeholder="e.g. 2008 – 2014" required>
+                    </div>
+                </div>
+                <div class="field-group full">
+                    <div class="field">
+                        <label>ACHIEVEMENTS / KCPE GRADE</label>
+                        <textarea id="primaryAchievements" rows="2" placeholder="Grade achieved, notable achievements..."></textarea>
+                    </div>
+                </div>
+
+                <div class="sub-section">
+                    <div class="sub-section-label">SECONDARY LEARNING NODE</div>
+                    <div class="field-group">
+                        <div class="field">
+                            <label>INSTITUTION NAME <span class="required-mark">✱</span></label>
+                            <input type="text" id="secondarySchool" placeholder="Secondary school name" required>
+                        </div>
+                        <div class="field">
+                            <label>CHRONOLOGICAL PERIOD <span class="required-mark">✱</span></label>
+                            <input type="text" id="secondaryYears" placeholder="e.g. 2015 – 2018" required>
+                        </div>
+                    </div>
+                    <div class="field-group full">
+                        <div class="field">
+                            <label>ACHIEVEMENTS / KCSE GRADE</label>
+                            <textarea id="secondaryAchievements" rows="2" placeholder="Mean grade, notable achievements..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sub-section">
+                    <div class="sub-section-label">TERTIARY LEARNING NODE — OPTIONAL</div>
+                    <div class="field-group">
+                        <div class="field">
+                            <label>UNIVERSITY / COLLEGE</label>
+                            <input type="text" id="university" placeholder="University or college name">
+                        </div>
+                        <div class="field">
+                            <label>DEGREE / COURSE</label>
+                            <input type="text" id="degree" placeholder="BSc Computer Science">
+                        </div>
+                    </div>
+                    <div class="field-group">
+                        <div class="field">
+                            <label>CHRONOLOGICAL PERIOD</label>
+                            <input type="text" id="universityYears" placeholder="e.g. 2019 – 2023">
+                        </div>
+                        <div class="field">
+                            <label>ACHIEVEMENTS / GPA / PROJECTS</label>
+                            <input type="text" id="universityAchievements" placeholder="First Class, 3.8 GPA...">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- WORK EXPERIENCE -->
+        <div class="panel">
+            <div class="corner-tag"></div>
+            <div class="panel-inner">
+                <div class="panel-header">
+                    <div class="panel-icon">◉</div>
+                    <div class="panel-title">MISSION LOG</div>
+                    <div class="panel-id">SEC-04 / WORK EXPERIENCE</div>
+                </div>
+
+                <div class="sub-section-label" style="margin-bottom:20px;">MISSION 01</div>
+                <div class="field-group trio">
+                    <div class="field">
+                        <label>ROLE DESIGNATION</label>
+                        <input type="text" id="jobTitle1" placeholder="Job title">
+                    </div>
+                    <div class="field">
+                        <label>ORGANIZATION</label>
+                        <input type="text" id="company1" placeholder="Company name">
+                    </div>
+                    <div class="field">
+                        <label>PERIOD</label>
+                        <input type="text" id="jobYears1" placeholder="Jan 2022 – Present">
+                    </div>
+                </div>
+                <div class="field-group full">
+                    <div class="field">
+                        <label>MISSION REPORT — RESPONSIBILITIES & ACHIEVEMENTS</label>
+                        <textarea id="jobDescription1" rows="4" placeholder="Describe your key responsibilities, achievements, and impact..."></textarea>
+                    </div>
+                </div>
+
+                <div class="sub-section">
+                    <div class="sub-section-label">MISSION 02</div>
+                    <div class="field-group trio">
+                        <div class="field">
+                            <label>ROLE DESIGNATION</label>
+                            <input type="text" id="jobTitle2" placeholder="Job title">
+                        </div>
+                        <div class="field">
+                            <label>ORGANIZATION</label>
+                            <input type="text" id="company2" placeholder="Company name">
+                        </div>
+                        <div class="field">
+                            <label>PERIOD</label>
+                            <input type="text" id="jobYears2" placeholder="Jun 2020 – Dec 2021">
+                        </div>
+                    </div>
+                    <div class="field-group full">
+                        <div class="field">
+                            <label>MISSION REPORT</label>
+                            <textarea id="jobDescription2" rows="4" placeholder="Describe your key responsibilities, achievements, and impact..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sub-section">
+                    <div class="sub-section-label">MISSION 03</div>
+                    <div class="field-group trio">
+                        <div class="field">
+                            <label>ROLE DESIGNATION</label>
+                            <input type="text" id="jobTitle3" placeholder="Job title">
+                        </div>
+                        <div class="field">
+                            <label>ORGANIZATION</label>
+                            <input type="text" id="company3" placeholder="Company name">
+                        </div>
+                        <div class="field">
+                            <label>PERIOD</label>
+                            <input type="text" id="jobYears3" placeholder="2018 – 2020">
+                        </div>
+                    </div>
+                    <div class="field-group full">
+                        <div class="field">
+                            <label>MISSION REPORT</label>
+                            <textarea id="jobDescription3" rows="4" placeholder="Describe your key responsibilities, achievements, and impact..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SKILLS -->
+        <div class="panel">
+            <div class="corner-tag"></div>
+            <div class="panel-inner">
+                <div class="panel-header">
+                    <div class="panel-icon">⬟</div>
+                    <div class="panel-title">ABILITY MATRIX</div>
+                    <div class="panel-id">SEC-05 / SKILLS</div>
+                </div>
+                <div class="field">
+                    <label>CORE COMPETENCIES — COMMA OR LINE SEPARATED <span class="required-mark">✱</span></label>
+                    <textarea id="skills" rows="3" placeholder="Python, JavaScript, Team Leadership, Project Management, Microsoft Office..." required></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- CERTIFICATIONS -->
+        <div class="panel">
+            <div class="corner-tag"></div>
+            <div class="panel-inner">
+                <div class="panel-header">
+                    <div class="panel-icon">◈</div>
+                    <div class="panel-title">CLEARANCE TOKENS</div>
+                    <div class="panel-id">SEC-06 / CERTIFICATIONS</div>
+                </div>
+                <div class="field">
+                    <label>CERTIFIED CREDENTIALS — ONE PER LINE</label>
+                    <textarea id="certifications" rows="4" placeholder="Google Data Analytics Certificate – 2024&#10;AWS Certified Cloud Practitioner – 2023&#10;Cisco CCNA – 2022"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- REFERENCES -->
+        <div class="panel">
+            <div class="corner-tag"></div>
+            <div class="panel-inner">
+                <div class="panel-header">
+                    <div class="panel-icon">⬡</div>
+                    <div class="panel-title">KNOWN ALLIES</div>
+                    <div class="panel-id">SEC-07 / REFERENCES</div>
+                </div>
+                <div class="field">
+                    <label>REFERENCE CONTACTS — ONE PER LINE OR "AVAILABLE UPON REQUEST"</label>
+                    <textarea id="references" rows="4" placeholder="Jane Muthoni&#10;HR Director, Safaricom PLC&#10;jane.muthoni@safaricom.co.ke | +254 722 123 456"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generate button -->
+        <button type="button" class="btn-synthesize" id="synthBtn" onclick="generatePDF()">
+            ⬡ INITIATE CV SYNTHESIS PROTOCOL ⬡
+        </button>
+
+    </form>
+
+    <!-- PDF Viewer -->
+    <div id="viewerWrap">
+        <div class="panel" style="margin-top:0;">
+            <div class="panel-inner">
+                <div class="panel-header">
+                    <div class="panel-icon">▣</div>
+                    <div class="panel-title">SYNTHESIZED OUTPUT</div>
+                    <div class="panel-id">RENDER COMPLETE</div>
+                </div>
+                <embed id="pdfViewer" type="application/pdf">
+                <div style="margin-top:16px; display:flex; gap:12px; align-items:center;">
+                    <button class="btn-download" id="dlBtn" onclick="downloadPDF()">⬇ DOWNLOAD CV DOCUMENT</button>
+                    <span style="font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--text-dim); letter-spacing:1px;">SYNTHESIS COMPLETE — PDF READY</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// ─── Custom cursor ────────────────────────────────────────
+const cursor = document.getElementById('cursor');
+const trail = document.getElementById('cursor-trail');
+let tx=0, ty=0, cx=0, cy=0;
+document.addEventListener('mousemove', e => {
+    cx = e.clientX; cy = e.clientY;
+    cursor.style.left = cx + 'px';
+    cursor.style.top = cy + 'px';
+});
+setInterval(() => {
+    tx += (cx - tx) * 0.18;
+    ty += (cy - ty) * 0.18;
+    trail.style.left = tx + 'px';
+    trail.style.top = ty + 'px';
+}, 16);
+document.querySelectorAll('input,textarea,button').forEach(el => {
+    el.addEventListener('mouseenter', () => {
+        cursor.style.width = '28px';
+        cursor.style.height = '28px';
+        cursor.style.borderColor = 'var(--bio)';
+    });
+    el.addEventListener('mouseleave', () => {
+        cursor.style.width = '16px';
+        cursor.style.height = '16px';
+        cursor.style.borderColor = 'var(--plasma)';
+    });
+});
+
+// ─── Starfield ────────────────────────────────────────────
+const canvas = document.getElementById('starfield');
+const ctx = canvas.getContext('2d');
+let stars = [];
+function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+function initStars() {
+    stars = [];
+    for (let i = 0; i < 200; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            r: Math.random() * 1.2,
+            a: Math.random(),
+            spd: Math.random() * 0.3 + 0.05,
+            twinkle: Math.random() * Math.PI * 2
+        });
+    }
+}
+function drawStars() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    stars.forEach(s => {
+        s.twinkle += 0.02;
+        const alpha = (Math.sin(s.twinkle) * 0.4 + 0.6) * s.a;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(168,216,232,${alpha})`;
+        ctx.fill();
+    });
+    requestAnimationFrame(drawStars);
+}
+resizeCanvas(); initStars(); drawStars();
+window.addEventListener('resize', () => { resizeCanvas(); initStars(); });
+
+// ─── Live progress meter ───────────────────────────────────
+const allFields = document.querySelectorAll('input, textarea');
+function updateMetrics() {
+    let filled = 0, words = 0;
+    allFields.forEach(f => {
+        if (f.value.trim()) {
+            filled++;
+            words += f.value.trim().split(/\s+/).filter(Boolean).length;
+        }
+    });
+    const pct = Math.round(filled / allFields.length * 100);
+    document.getElementById('fillBar').style.width = pct + '%';
+    document.getElementById('fillPct').textContent = pct + '%';
+    document.getElementById('dn-fields').textContent = filled;
+    document.getElementById('dn-words').textContent = words;
+    // sections: count panels with any filled input
+    const panels = document.querySelectorAll('.panel');
+    let activeSec = 0;
+    panels.forEach(p => {
+        const inputs = p.querySelectorAll('input, textarea');
+        if ([...inputs].some(i => i.value.trim())) activeSec++;
+    });
+    document.getElementById('dn-sections').textContent = activeSec;
+    // Rough page estimate
+    const estPages = Math.max(1, Math.ceil(words / 200));
+    document.getElementById('dn-pages').textContent = estPages;
+}
+allFields.forEach(f => f.addEventListener('input', updateMetrics));
+updateMetrics();
+
+// ─── PDF Variables ────────────────────────────────────────
+let pdfBlob = null;
+
+// ─── PDF Generation ───────────────────────────────────────
+function generatePDF() {
+    const btn = document.getElementById('synthBtn');
+    btn.textContent = '⬡ SYNTHESIZING... ⬡';
+    btn.disabled = true;
+
+    setTimeout(() => {
+        try {
+            buildPDF();
+        } catch(e) {
+            console.error(e);
+            btn.textContent = '⬡ INITIATE CV SYNTHESIS PROTOCOL ⬡';
+            btn.disabled = false;
+        }
+    }, 200);
+}
+
+function buildPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const margin = 18;
+    const rightMargin = pageWidth - margin;
+    const bottomMargin = 28;
+    const maxY = pageHeight - bottomMargin;
+    let y = margin;
+
+    function newPage() {
+        doc.addPage();
+        y = margin;
+        addPageHeader();
+        return y;
+    }
+
+    function check(needed = 10) {
+        if (y + needed >= maxY) newPage();
+    }
+
+    function addPageHeader() {
+        // Minimal top bar on subsequent pages
+        doc.setFillColor(0, 255, 231);
+        doc.rect(margin, 10, rightMargin - margin, 0.5, 'F');
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100, 130, 140);
+        const name = document.getElementById('fullName').value.trim().toUpperCase();
+        doc.text(name, margin, 15);
+        doc.text("CURRICULUM VITAE", rightMargin, 15, { align: "right" });
+        y = 22;
+    }
+
+    function line(yPos, color=[0,255,231], alpha=0.4) {
+        doc.setDrawColor(...color);
+        doc.setLineWidth(0.3);
+        doc.line(margin, yPos, rightMargin, yPos);
+    }
+
+    function sectionTitle(title) {
+        check(18);
+        y += 4;
+        // Background accent
+        doc.setFillColor(240, 250, 255);
+        doc.rect(margin, y - 4, rightMargin - margin, 12, 'F');
+        // Left accent bar
+        doc.setFillColor(0, 200, 180);
+        doc.rect(margin, y - 4, 3, 12, 'F');
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(30, 50, 70);
+        doc.text(title.toUpperCase(), margin + 7, y + 4);
+        y += 16;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(40, 55, 70);
+    }
+
+    function subLabel(txt) {
+        check(10);
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 150, 130);
+        doc.text(txt.toUpperCase(), margin, y);
+        y += 7;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(40, 55, 70);
+    }
+
+    function text(content, opts = {}) {
+        if (!content?.trim()) return;
+        const { indent = 0, lineH = 6, bold = false, small = false, color = [40, 55, 70] } = opts;
+        check(lineH + 4);
+        doc.setFont("helvetica", bold ? "bold" : "normal");
+        doc.setFontSize(small ? 9 : 10);
+        doc.setTextColor(...color);
+        const maxW = rightMargin - margin - indent;
+        const lines = doc.splitTextToSize(content, maxW);
+        lines.forEach(l => {
+            check(lineH);
+            doc.text(l, margin + indent, y);
+            y += lineH;
+        });
+    }
+
+    function bullet(content) {
+        if (!content?.trim()) return;
+        const lines = content.split('\n').filter(l => l.trim());
+        lines.forEach(l => {
+            check(7);
+            doc.setFillColor(0, 200, 180);
+            doc.circle(margin + 3, y - 1.5, 1, 'F');
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.setTextColor(55, 70, 85);
+            const wrapped = doc.splitTextToSize(l.trim(), rightMargin - margin - 8);
+            wrapped.forEach((wl, i) => {
+                check(6);
+                doc.text(wl, margin + 7, y);
+                y += 6;
+            });
+        });
+        y += 2;
+    }
+
+    // ── PDF HEADER ──────────────────────────────────────────
+    // Top color block
+    doc.setFillColor(8, 24, 40);
+    doc.rect(0, 0, pageWidth, 42, 'F');
+
+    // Name
+    doc.setFontSize(22);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    const name = document.getElementById('fullName').value.trim().toUpperCase() || "YOUR NAME";
+    doc.text(name, pageWidth / 2, 18, { align: "center" });
+
+    // Teal underline
+    const nameW = doc.getTextWidth(name);
+    doc.setFillColor(0, 255, 231);
+    doc.rect((pageWidth - nameW) / 2, 21, nameW, 0.8, 'F');
+
+    // Contact row
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(160, 210, 220);
+    const contactParts = [];
+    const addr = document.getElementById('address').value.trim();
+    const phone = document.getElementById('phone').value.trim();
+    const email = document.getElementById('email').value.trim();
+    if (addr) contactParts.push(addr);
+    if (phone) contactParts.push(phone);
+    if (email) contactParts.push(email);
+    doc.text(contactParts.join("   |   "), pageWidth / 2, 30, { align: "center" });
+
+    const links = [];
+    if (document.getElementById('linkedin').value.trim()) links.push(document.getElementById('linkedin').value.trim());
+    if (document.getElementById('github').value.trim()) links.push(document.getElementById('github').value.trim());
+    if (links.length) {
+        doc.setTextColor(0, 230, 210);
+        doc.text(links.join("   |   "), pageWidth / 2, 38, { align: "center" });
+    }
+
+    y = 50;
+
+    // ── PROFESSIONAL SUMMARY ──────────────────────────────
+    sectionTitle("Professional Summary");
+    text(document.getElementById('summary').value, { lineH: 6.5 });
+    y += 4;
+
+    // ── EDUCATION ─────────────────────────────────────────
+    sectionTitle("Education");
+
+    subLabel("Primary Education");
+    const ps = document.getElementById('primarySchool').value.trim();
+    const py = document.getElementById('primaryYears').value.trim();
+    if (ps || py) text(`${ps}${py ? '  ('+py+')' : ''}`, { bold: true, lineH: 6 });
+    const pa = document.getElementById('primaryAchievements').value.trim();
+    if (pa) bullet(pa);
+    y += 2;
+
+    subLabel("Secondary Education");
+    const ss = document.getElementById('secondarySchool').value.trim();
+    const sy = document.getElementById('secondaryYears').value.trim();
+    if (ss || sy) text(`${ss}${sy ? '  ('+sy+')' : ''}`, { bold: true, lineH: 6 });
+    const sa = document.getElementById('secondaryAchievements').value.trim();
+    if (sa) bullet(sa);
+    y += 2;
+
+    const uni = document.getElementById('university').value.trim();
+    if (uni) {
+        subLabel("Tertiary Education");
+        const deg = document.getElementById('degree').value.trim();
+        const uy = document.getElementById('universityYears').value.trim();
+        let uniLine = uni;
+        if (deg) uniLine += ` — ${deg}`;
+        if (uy) uniLine += `  (${uy})`;
+        text(uniLine, { bold: true, lineH: 6 });
+        const ua = document.getElementById('universityAchievements').value.trim();
+        if (ua) bullet(ua);
+    }
+    y += 2;
+
+    // ── WORK EXPERIENCE ────────────────────────────────────
+    const jobs = [
+        { t: 'jobTitle1', c: 'company1', y: 'jobYears1', d: 'jobDescription1' },
+        { t: 'jobTitle2', c: 'company2', y: 'jobYears2', d: 'jobDescription2' },
+        { t: 'jobTitle3', c: 'company3', y: 'jobYears3', d: 'jobDescription3' }
+    ];
+    const activeJobs = jobs.filter(j => document.getElementById(j.t).value.trim());
+    if (activeJobs.length) {
+        sectionTitle("Professional Experience");
+        activeJobs.forEach((j, idx) => {
+            const title = document.getElementById(j.t).value.trim();
+            const company = document.getElementById(j.c).value.trim();
+            const period = document.getElementById(j.y).value.trim();
+            const desc = document.getElementById(j.d).value.trim();
+
+            check(20);
+            // Role title
+            doc.setFontSize(10.5);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(30, 50, 70);
+            doc.text(title, margin, y);
+            // Period on right
+            if (period) {
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "italic");
+                doc.setTextColor(100, 130, 140);
+                doc.text(period, rightMargin, y, { align: "right" });
+            }
+            y += 6;
+            // Company
+            if (company) {
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(0, 150, 130);
+                doc.text(company, margin, y);
+                y += 7;
+            }
+            // Description
+            if (desc) bullet(desc);
+            if (idx < activeJobs.length - 1) {
+                line(y); y += 6;
+            }
+        });
+        y += 4;
+    }
+
+    // ── SKILLS ─────────────────────────────────────────────
+    const skills = document.getElementById('skills').value.trim();
+    if (skills) {
+        sectionTitle("Skills");
+        // Render as tags by splitting
+        const skillList = skills.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+        let rowX = margin;
+        const tagH = 8;
+        const tagPad = 5;
+        skillList.forEach(skill => {
+            doc.setFontSize(9);
+            const w = doc.getTextWidth(skill) + tagPad * 2;
+            if (rowX + w > rightMargin) {
+                rowX = margin;
+                y += tagH + 3;
+            }
+            check(tagH + 4);
+            doc.setFillColor(230, 248, 245);
+            doc.setDrawColor(0, 180, 160);
+            doc.roundedRect(rowX, y - 5.5, w, tagH, 1, 1, 'FD');
+            doc.setTextColor(0, 120, 110);
+            doc.setFont("helvetica", "normal");
+            doc.text(skill, rowX + tagPad, y);
+            rowX += w + 4;
+        });
+        y += tagH + 6;
+    }
+
+    // ── CERTIFICATIONS ─────────────────────────────────────
+    const certs = document.getElementById('certifications').value.trim();
+    if (certs) {
+        sectionTitle("Certifications");
+        bullet(certs);
+        y += 2;
+    }
+
+    // ── REFERENCES ─────────────────────────────────────────
+    const refs = document.getElementById('references').value.trim();
+    if (refs) {
+        sectionTitle("References");
+        bullet(refs);
+    }
+
+    // ── Footer ─────────────────────────────────────────────
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFillColor(8, 24, 40);
+        doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(80, 120, 140);
+        doc.text(`Page ${i} of ${totalPages}`, pageWidth / 2, pageHeight - 5, { align: "center" });
+        doc.text(new Date().toLocaleDateString('en-GB', {year:'numeric',month:'long'}), margin, pageHeight - 5);
+        const n = document.getElementById('fullName').value.trim().toUpperCase();
+        doc.text(n + " — CURRICULUM VITAE", rightMargin, pageHeight - 5, { align: "right" });
+    }
+
+    // Output
+    pdfBlob = doc.output('blob');
+    const url = URL.createObjectURL(pdfBlob);
+    const viewer = document.getElementById('pdfViewer');
+    viewer.src = url + "#view=FitH";
+
+    const wrap = document.getElementById('viewerWrap');
+    wrap.style.display = 'block';
+    wrap.scrollIntoView({ behavior: 'smooth' });
+
+    const btn = document.getElementById('synthBtn');
+    btn.textContent = '⬡ RE-SYNTHESIZE CV ⬡';
+    btn.disabled = false;
+}
+
+function downloadPDF() {
+    if (!pdfBlob) return;
+    const name = document.getElementById('fullName').value.trim().replace(/\s+/g, '_') || 'CV';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(pdfBlob);
+    a.download = `${name}_CV.pdf`;
+    a.click();
+}
+</script>
+</body>
+</html>
